@@ -1,0 +1,52 @@
+# --- Node ---
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Python ---
+**/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# venv / virtualenv
+**/.venv/
+**/venv/
+**/ENV/
+**/env/
+
+# --- OS / Editor ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Audio files
+*.mp3
+*.wav
+*.m4a
+*.ogg
+*.flac
+
+# AI / generated data
+backend/ai-models/
+backend/control_images/
+
+# Generated / cache
+*.log
+*.tmp
+*.cache
+*.sqlite
+
+# Frontend build
+frontend/dist/
+frontend/build/
+
+# backup
+backup.bundle
+*.bak
+
+# weight
+frontend/wood_checker/*.bin

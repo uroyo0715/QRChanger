@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Synergy App</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; margin: 0; padding: 20px; background: #f4f4f9; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        canvas { width: 100%; border-radius: 8px; margin-top: 10px; }
+        #video { display: none; }
+        .result-card { background: #eee; padding: 15px; border-radius: 8px; margin-top: 20px; }
+        .btn { padding: 12px 20px; font-size: 16px; margin: 5px; cursor: pointer; border: none; border-radius: 8px; background: #4a90e2; color: white; }
+        .back-btn { background: #666; margin-top: 20px; }
+        
+        #music-controls { display: none; margin-top: 20px; padding: 15px; border: 2px solid #4a90e2; border-radius: 10px; background: #fff; }
+        #seek-bar { width: 90%; cursor: pointer; margin: 15px 0; }
+    </style>
+</head>
+<body>
+
+    <div id="home-screen" class="container">
+        <h1>QR Synergy App</h1>
+        <p>機能を選択してください</p>
+        <button class="btn" onclick="startApp('info')">🌲 URL変化モード</button>
+        <button class="btn" onclick="startApp('music')">🎵 音楽変調モード</button>
+        <button class="btn" onclick="startApp('image_gen')">🎨 風景生成モード</button>
+    </div>
+
+    <div id="app-container" class="container" style="display:none;">
+        <h2 id="mode-display-title"></h2>
+        <video id="video"></video>
+        <canvas id="canvas"></canvas>
+        
+        <div id="status-area">
+            <p>判定樹種: <span id="wood-type">-</span></p>
+            <p id="rgb-val" style="font-size:12px; color:gray;"></p>
+            <div id="color-preview" style="width:30px; height:30px; margin:auto; border:1px solid #000;"></div>
+        </div>
+
+        <div id="music-controls">
+            <div id="song-info" style="font-weight:bold; margin-bottom:10px;">楽曲を読み込み中...</div>
+            <input type="range" id="seek-bar" value="0" min="0" step="0.1">
+            <div class="controls">
+                <button id="play-btn" class="btn" style="background:#27ae60;">再生</button>
+                <button id="pause-btn" class="btn" style="background:#f39c12;">一時停止</button>
+                <button id="stop-btn" class="btn" style="background:#e74c3c;">停止</button>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-bottom: 10px;">
+            <button id="lock-btn" onclick="toggleInputLock()" style="background-color: #7f8c8d; width: 80%;">🔓 検出値を固定する</button>
+        </div>
+        
+        <div id="output-content" class="result-card">QRコードをかざしてください</div>
+        
+        <button class="btn back-btn" onclick="location.reload()">ホームへ戻る</button>
+    </div>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>
