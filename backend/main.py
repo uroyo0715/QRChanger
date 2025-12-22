@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from diffusers import StableDiffusionControlNetPipeline, ControlNetModel, UniPCMultistepScheduler
 from PIL import Image
 from diffusers import AudioLDMPipeline
+from fastapi.responses import JSONResponse
 
 # === 設定エリア ===
 # GPU設定
@@ -18,6 +19,23 @@ dtype = torch.float16
 # 保存した構図画像のパス
 LAYOUT_MAP = {
     "layout_A": "control_images/layout_A.png", 
+}
+
+# 経年変化モード用データベース
+ITEM_DATABASE = {
+    "chair009": {
+        "title": "プロトタイプ - 椅子 No.009",
+        "lv1": "【公式説明】人間工学に基づき、3Dプリント技術と伝統工芸を融合させた次世代の椅子。座り心地を追求したカーブが特徴です。",
+        "lv2": "【開発日誌】正直に言うと、このカーブは計算して作ったわけじゃない。コーヒーをこぼして図面が歪んだのを『これだ！』と勘違いして採用してしまったんだ。",
+        "lv3": "【極秘メモ】実は耐久テストで一度大破している。社長には『斬新なデザインのための空洞です』と嘘をついて誤魔化した。絶対に飛び跳ねないでくれよ…絶対にだぞ。"
+    },
+    
+    "art01": {
+        "title": "作品名：『無題』",
+        "lv1": "2025年作。北海道産のナラ材を使用。素材の持つ力強さを最大限に引き出すため、あえて塗装を最小限に抑えています。",
+        "lv2": "若い頃の私は、技術を見せつけることばかり考えていた。だが、この木に出会って気づいたんだ。俺が削るんじゃない、木が『こうなりたい』と言っている形にするだけだと。",
+        "lv3": "君がこのメッセージを読んでいるということは、この作品はもうボロボロになっているだろう。だが、それこそが私の望んだ『完成』だ。傷の数だけ、誰かの生活に寄り添えたのだから。"
+    }
 }
 
 # 樹種ごとのプロンプト設定
@@ -151,6 +169,38 @@ async def generate_image(
     image.save(img_byte_arr, format='PNG')
     return Response(content=img_byte_arr.getvalue(), media_type="image/png")
 
+@app.post("/get_item_info")
+async def get_item_info(qr_data: str = Form(...)):
+    print(f"★アイテム検索リクエスト: {qr_data}")
+    
+    target_id = None
+    
+    # 1. JSON形式として解析を試みる
+    try:
+        data = json.loads(qr_data)
+        if isinstance(data, dict) and "id" in data:
+            target_id = data["id"]
+    except:
+        pass
+    
+    # 2. JSONじゃなければ、文字列全体をIDとして扱う
+    if not target_id:
+        target_id = qr_data.strip()
+
+    # 3. データベース検索
+    if target_id in ITEM_DATABASE:
+        print(f"  -> ID一致: {target_id}")
+        return JSONResponse(content=ITEM_DATABASE[target_id])
+    
+    # 4. 【追加】見つからない場合も、デモ用に「chair009」を返す (開発用)
+    print(f"  -> ID不一致({target_id})のため、デモデータを返却します")
+    
+    # デモデータであることをタイトルに追加して返す
+    demo_data = ITEM_DATABASE["chair009"].copy()
+    demo_data["title"] = f"【Demo】{demo_data['title']}"
+    
+    return JSONResponse(content=demo_data)
+
 @app.post("/generate_sound")
 async def generate_sound(
     qr_data: str = Form(...),
@@ -217,8 +267,8 @@ async def generate_music(
         target_mood = qr_data
 
     # 3. プロンプト作成 (ここを大幅強化！)
-    # ★ポイント1: "Instrumental, no vocals" を先頭に入れて歌声を阻止
-    # ★ポイント2: 樹種の特徴(wood_adjectives)を楽器の直前に置いて、音色への影響を強める
+    # "Instrumental, no vocals" を先頭に入れて歌声を阻止
+    # 樹種の特徴(wood_adjectives)を楽器の直前に置いて、音色への影響を強める
     prompt = (
         f"High quality instrumental recording, no vocals. "
         f"A {target_instrument} solo with {wood_adjectives} tone. "
@@ -226,7 +276,7 @@ async def generate_music(
         f"Clear sound, high fidelity, 44.1kHz, studio quality, reverb"
     )
     
-    # ★ポイント3: ネガティブプロンプトでノイズと歌声を徹底排除
+    # ネガティブプロンプトでノイズと歌声を徹底排除
     negative_prompt = (
         "vocals, singing, voice, human voice, speech, talking, "
         "distortion, noise, crackle, static, low quality, low fidelity, "
