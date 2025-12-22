@@ -23,6 +23,7 @@
         <h1>QR Synergy App</h1>
         <p>機能を選択してください</p>
         <button class="btn" onclick="startApp('info')">🌲 URL変化モード</button>
+        <button class="btn" onclick="startApp('unlock')">🗝️ 経年変化モード</button>
         <button class="btn" onclick="startApp('music')">🎵 音楽変調モード</button>
         <button class="btn" onclick="startApp('instrument')">🎻 楽器音色モード</button>
         <button class="btn" onclick="startApp('image_gen')">🎨 風景生成モード</button>
@@ -52,7 +53,11 @@
         <div style="text-align: center; margin-bottom: 10px;">
             <button id="lock-btn" onclick="toggleInputLock()" style="background-color: #7f8c8d; width: 80%;">🔓 検出値を固定する</button>
         </div>
-        
+
+        <div id="unlock-controls" style="display:none; text-align: center; margin-bottom: 10px;">
+            <p id="live-preview" style="font-weight:bold; margin-bottom:5px;">現在の深度: --%</p>
+            <button id="analyze-btn" class="btn" style="background-color: #8e44ad; width: 80%;">📸 解析を実行する</button>
+        </div>        
         <div id="output-content" class="result-card">QRコードをかざしてください</div>
         
         <button class="btn back-btn" onclick="location.reload()">ホームへ戻る</button>
