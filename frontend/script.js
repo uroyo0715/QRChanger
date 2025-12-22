@@ -24,6 +24,7 @@ let lastPlayedPath = "";
 let isGenerating = false;      // 生成中フラグ
 let lastGenQR = "";            // 直前に生成したQRデータ
 let lastGenMaterial = "";      // 直前に生成した樹種
+let isPlayingSound = false;    // 演奏中フラグ
 
 // 入力固定用の変数
 let isInputLocked = false;
@@ -41,6 +42,7 @@ window.startApp = function(mode) {
     if(titleElem) {
         if (mode === 'info') titleElem.innerText = "樹種モード";
         else if (mode === 'music') titleElem.innerText = "音楽変調モード";
+        else if (mode === 'instrument') titleElem.innerText = "楽器音色モード";
         else if (mode === 'image_gen') titleElem.innerText = "風景生成モード";
     }
 
@@ -125,6 +127,8 @@ function tick() {
                 runMusicMode(finalQRData, finalMaterial);
             } else if (selectedMode === "image_gen") {
                 runImageGenMode(finalQRData, finalMaterial);
+            } else if (selectedMode === "instrument") {
+                runInstrumentMode(finalQRData, finalMaterial); 
             } else {
                 handleQRData(finalQRData, finalMaterial);
             }
@@ -142,29 +146,66 @@ function tick() {
 }
 
 // --- 音楽変調 ---
-function runMusicMode(qrData, material) {
-    const songEntry = musicDatabase[qrData];
-    if (songEntry) {
-        const audioPath = songEntry.variations[material] || songEntry.variations["default"];
-        
-        // パネルを表示
-        if (musicControls) musicControls.style.display = "block";
+async function runMusicMode(qrData, material) {
+    // 連打防止
+    if (isGenerating || (qrData === lastGenQR && material === lastGenMaterial)) {
+        return;
+    }
+    
+    isGenerating = true; // 生成中フラグをON
+    lastGenQR = qrData;
+    lastGenMaterial = material;
 
-        if (audioPath && audioPath !== lastPlayedPath) {
-            lastPlayedPath = audioPath;
-            currentAudio.src = audioPath;
-            currentAudio.loop = true;
-            currentAudio.play().catch(err => console.warn("再生待機中...", err));
-            
-            if (songInfo) songInfo.innerHTML = `🎵 ${songEntry.title}<br><small>材質[${material}]に合わせて変調中</small>`;
-            outputContent.innerText = "音楽再生モード実行中";
+    // UI表示更新
+    outputContent.innerHTML = "🎵 音楽を生成中...<br><small>QR楽譜と樹種を解析しています</small>";
+    if (musicControls) musicControls.style.display = "block"; // プレイヤー表示
+
+    const formData = new FormData();
+    formData.append("qr_data", qrData);
+    formData.append("wood_type", material);
+
+    try {
+        const response = await fetch("http://localhost:8000/generate_music", {
+            method: "POST",
+            body: formData
+        });
+
+        if (!response.ok) throw new Error("Server Error");
+
+        const blob = await response.blob();
+        const audioUrl = URL.createObjectURL(blob);
+        
+        // 生成された音楽を再生
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.src = "";
         }
-    } else {
-        outputContent.innerText = "楽曲ID未登録: " + qrData;
+        currentAudio = new Audio(audioUrl);
+        currentAudio.loop = true;
+        currentAudio.play();
+        
+        // 画面表示
+        let descText = "生成された楽曲";
+        try {
+            // QRがJSONなら中身を表示
+            const json = JSON.parse(qrData);
+            if(json.inst) descText = `楽器: ${json.inst}`;
+        } catch(e) {}
+
+        songInfo.innerHTML = `🎵 AI生成ミュージック<br><small>${descText} / 材質: ${material}</small>`;
+        outputContent.innerHTML = `🎵 <b>演奏中</b><br><small>${descText} × ${getWoodTrait(material)}</small>`;
+
+    } catch (e) {
+        console.error(e);
+        outputContent.innerText = "音楽生成エラー";
+        lastGenQR = "";
+    } finally {
+        // 生成完了したらフラグ解除
+        isGenerating = false;
     }
 }
 
-// ★追加: 風景生成モードの処理 ---
+// 風景生成モードの処理 ---
 async function runImageGenMode(qrData, material) {
     // 既に同じ組み合わせで生成済みなら何もしない（連打防止）
     if (qrData === lastGenQR && material === lastGenMaterial) {
@@ -237,6 +278,62 @@ async function runImageGenMode(qrData, material) {
     }
 }
 
+// 楽器音色モードの処理
+async function runInstrumentMode(qrData, material) {
+    // 連打防止
+    if (isPlayingSound || (qrData === lastGenQR && material === lastGenMaterial)) {
+        return;
+    }
+    
+    isPlayingSound = true;
+    lastGenQR = qrData;
+    lastGenMaterial = material;
+    
+    outputContent.innerHTML = "🎻 音色を生成中...<br><small>樹種特性を解析しています</small>";
+
+    const formData = new FormData();
+    formData.append("qr_data", qrData);
+    formData.append("wood_type", material);
+    formData.append("instrument", "violin"); // 必要に応じて変更可
+
+    try {
+        const response = await fetch("http://localhost:8000/generate_sound", {
+            method: "POST",
+            body: formData
+        });
+
+        if (!response.ok) throw new Error("Server Error");
+
+        const blob = await response.blob();
+        const audioUrl = URL.createObjectURL(blob);
+        
+        // 生成された音声を再生
+        const audio = new Audio(audioUrl);
+        audio.play();
+        
+        outputContent.innerHTML = `🎻 <b>${material}</b> の音色<br><small>特性: ${getWoodTrait(material)}</small>`;
+        
+        // 再生が終わったらロック解除（連打防止用）
+        audio.onended = () => {
+            // 少し余韻を持たせてから解除
+            setTimeout(() => { isPlayingSound = false; }, 2000);
+        };
+
+    } catch (e) {
+        console.error(e);
+        outputContent.innerText = "生成エラー: サーバーを確認してください";
+        isPlayingSound = false;
+        lastGenQR = ""; // エラー時はリトライ可能に
+    }
+}
+
+// 画面表示用のヘルパー関数
+function getWoodTrait(material) {
+    if(material === "sugi") return "Warm / Soft (温かい・柔らかい)";
+    if(material === "walnut") return "Rich / Balanced (豊か・バランス)";
+    if(material === "kiri") return "Light / Resonant (軽い・響く)";
+    return "Standard";
+}
 
 // --- プレイヤー操作イベントの登録 ---
 document.getElementById("play-btn").onclick = () => currentAudio.play();
